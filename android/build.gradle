@@ -1,0 +1,106 @@
+buildscript {
+    if (project == rootProject) {
+        repositories {
+            google()
+            mavenCentral()
+        }
+
+        dependencies {
+            classpath 'com.android.tools.build:gradle:7.0.4'
+            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        }
+    }
+}
+
+def isNewArchitectureEnabled() {
+    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
+}
+
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+apply plugin: "com.facebook.react"
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+android {
+    compileSdkVersion safeExtGet('AudioRecorderWithWaveform_compileSdkVersion', 31)
+    defaultConfig {
+        minSdkVersion safeExtGet('AudioRecorderWithWaveform_minSdkVersion', 21)
+        targetSdkVersion safeExtGet('AudioRecorderWithWaveform_targetSdkVersion', 31)
+        versionCode 1
+        versionName "1.0"
+
+        externalNativeBuild {
+            cmake {
+                cFlags "-Wall", "-Werror", "-fexceptions", "-frtti", "-DWITH_INSPECTOR=1"
+                arguments "-DCMAKE_VERBOSE_MAKEFILE=1"
+                cppFlags "-std=c++17"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+	        // pin cmake version to support M1 machines
+            version '3.22.1'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    lintOptions {
+        disable 'GradleCompatible'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets.main {
+        java {
+            if (!isNewArchitectureEnabled()) {
+                srcDirs += [
+                    "build/generated/source/codegen/java"
+                ]
+            }
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    maven {
+        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+        url("$rootDir/../node_modules/react-native/android")
+    }
+    google()
+    mavenCentral()
+}
+
+dependencies {
+  compileOnly project(':ReactAndroid')
+  compileOnly "com.facebook.react:react-native:+"
+  compileOnly "com.arthenica:mobile-ffmpeg-full:${safeExtGet('AudioRecorderWithWaveform_mobileFfmpegFull', '4.4.LTS')}"
+  compileOnly "com.github.lincollincol:Amplituda:${safeExtGet('AudioRecorderWithWaveform_amplituda', '2.1.2')}"
+  implementation "io.reactivex.rxjava3:rxjava:${safeExtGet('AudioRecorderWithWaveform_rxjava', '3.1.3')}"
+  implementation "io.reactivex.rxjava3:rxandroid:${safeExtGet('AudioRecorderWithWaveform_rxandroid', '3.0.0')}"
+  implementation "androidx.core:core-ktx:${safeExtGet('AudioRecorderWithWaveform_coreKtx', '1.8.0')}"
+  compileOnly "com.google.android.exoplayer:exoplayer:${safeExtGet('AudioRecorderWithWaveform_exoplayer', '2.16.1')}"
+}
+
+if (isNewArchitectureEnabled()) {
+    react {
+        libraryName = "reactnativeaudiorecorderwithwaveform"
+        codegenJavaPackageName = "com.reactnativeaudiorecorderwithwaveform"
+        jsRootDir = file("../src/")
+        reactRoot = rootProject.file("../node_modules/react-native/")
+        codegenDir = rootProject.file("../node_modules/react-native-codegen/")
+    }
+}
